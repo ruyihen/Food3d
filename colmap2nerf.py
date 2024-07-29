@@ -21,6 +21,14 @@ import cv2
 import os
 import shutil
 
+
+"""
+video_in /media/mprl/HDD1/nutrition/nutrition5k_dataset/imagery/side_angles/dish_1550704750/camera_A.h264
+video_fps 3
+video_slice 2,6
+run_colmap
+"""
+
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 SCRIPTS_FOLDER = os.path.join(ROOT_DIR, "scripts")
 
@@ -115,6 +123,7 @@ def run_colmap(args):
 		args.text=db_noext+"_text"
 	text=args.text
 	sparse=db_noext+"_sparse"
+	dense=db_noext+"_dense"
 	print(f"running colmap with:\n\tdb={db}\n\timages={images}\n\tsparse={sparse}\n\ttext={text}")
 	if not args.overwrite and (input(f"warning! folders '{sparse}' and '{text}' will be deleted/replaced. continue? (Y/n)").lower().strip()+"y")[:1] != "y":
 		sys.exit(1)
@@ -136,6 +145,15 @@ def run_colmap(args):
 		shutil.rmtree(text)
 	except:
 		pass
+	shutil.rmtree(dense)
+	do_system(f"mkdir {dense}")
+	do_system(f"{colmap_binary} image_undistorter --image_path {images} --input_path {sparse}/0 --output_path {dense} --output_type COLMAP --max_image_size 2000")
+	do_system(f"{colmap_binary} patch_match_stereo  --workspace_path {dense} --workspace_format COLMAP --PatchMatchStereo.geom_consistency true")
+	do_system(
+		f"{colmap_binary} stereo_fusion --workspace_path {dense} --workspace_format COLMAP --input_type geometric --output_path {dense}/fused.ply")
+	do_system(f"{colmap_binary} poisson_mesher  --input_path {dense}/fused.ply --output_path {dense}/meshed-poisson.ply")
+	#ydo_system(f"{colmap_binary} delaunay_mesher  --input_path {dense}/fused.ply --output_path {dense}/meshed-delaunay.ply")
+
 	do_system(f"mkdir {text}")
 	do_system(f"{colmap_binary} model_converter --input_path {sparse}/0 --output_path {text} --output_type TXT")
 
